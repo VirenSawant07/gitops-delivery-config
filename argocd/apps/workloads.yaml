@@ -36,3 +36,11 @@ spec:
           selfHeal: true
         syncOptions:
           - CreateNamespace=true
+          # ServiceMonitor CRD comes from the monitoring app; retry until it exists
+          - SkipDryRunOnMissingResource=true
+        retry:
+          limit: 10
+          backoff:
+            duration: 15s
+            factor: 2
+            maxDuration: 5m

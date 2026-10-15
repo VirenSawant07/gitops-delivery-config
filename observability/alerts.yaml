@@ -1,0 +1,72 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gitops-delivery-platform
+  namespace: monitoring
+spec:
+  groups:
+    - name: gitops-delivery-platform
+      rules:
+        - alert: HighErrorRate
+          # 5xx share of real traffic (probe and scrape endpoints excluded)
+          expr: |
+            (
+              sum by (namespace, service) (rate(http_requests_total{namespace=~"staging|prod", status=~"5..", path!~"/healthz|/readyz|/metrics"}[2m]))
+            /
+              sum by (namespace, service) (rate(http_requests_total{namespace=~"staging|prod", path!~"/healthz|/readyz|/metrics"}[2m]))
+            ) > 0.05
+          for: 1m
+          labels:
+            severity: critical
+            project: gitops-delivery-platform
+          annotations:
+            summary: "{{ $labels.service }} in {{ $labels.namespace }}: {{ $value | humanizePercentage }} of requests failing"
+            runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/high-error-rate.md
+
+        - alert: ServiceDown
+          expr: sum by (namespace, service) (up{namespace=~"staging|prod"}) == 0
+          for: 1m
+          labels:
+            severity: critical
+            project: gitops-delivery-platform
+          annotations:
+            summary: "No healthy {{ $labels.service }} targets in {{ $labels.namespace }}"
+            runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/service-down.md
+
+        - alert: PodRestartingFrequently
+          expr: increase(kube_pod_container_status_restarts_total{namespace=~"staging|prod"}[10m]) >= 2
+          for: 1m
+          labels:
+            severity: warning
+            project: gitops-delivery-platform
+          annotations:
+            summary: "{{ $labels.pod }} in {{ $labels.namespace }} restarted {{ $value | humanize }} times in 10 minutes"
+            runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/pod-restarting.md
+
+        - alert: HighCPUUsage
+          expr: |
+            sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace=~"staging|prod", container="app"}[5m]))
+            /
+            sum by (namespace, pod) (kube_pod_container_resource_limits{namespace=~"staging|prod", container="app", resource="cpu"})
+            > 0.8
+          for: 5m
+          labels:
+            severity: warning
+            project: gitops-delivery-platform
+          annotations:
+            summary: "{{ $labels.pod }} in {{ $labels.namespace }} at {{ $value | humanizePercentage }} of its CPU limit"
+            runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/high-cpu.md
+
+        - alert: HighMemoryUsage
+          expr: |
+            sum by (namespace, pod) (container_memory_working_set_bytes{namespace=~"staging|prod", container="app"})
+            /
+            sum by (namespace, pod) (kube_pod_container_resource_limits{namespace=~"staging|prod", container="app", resource="memory"})
+            > 0.85
+          for: 5m
+          labels:
+            severity: warning
+            project: gitops-delivery-platform
+          annotations:
+            summary: "{{ $labels.pod }} in {{ $labels.namespace }} at {{ $value | humanizePercentage }} of its memory limit"
+            runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/high-memory.md

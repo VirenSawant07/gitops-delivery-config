@@ -23,6 +23,10 @@ resources:
 pdb:
   minAvailable: 1
 
+serviceMonitor:
+  enabled: true     # needs the Prometheus Operator CRDs (installed by platform/monitoring)
+  interval: 15s
+
 networkPolicy:
   enabled: false
   # Names (release names) of the services allowed to call this one

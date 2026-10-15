@@ -1,0 +1,81 @@
+# Synthetic traffic: a tiny client that calls /products about twice a second in each
+# environment, so dashboards and error-rate alerts reflect real requests on a laptop cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  namespace: staging
+  labels:
+    app.kubernetes.io/name: traffic-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traffic-generator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: traffic-generator
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: client
+          image: busybox:1.37
+          command: ["sh", "-c", "while true; do wget -q -O /dev/null -T 2 http://api/products; sleep 0.5; done"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 8Mi
+            limits:
+              cpu: 50m
+              memory: 16Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic-generator
+  namespace: prod
+  labels:
+    app.kubernetes.io/name: traffic-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traffic-generator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: traffic-generator
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: client
+          image: busybox:1.37
+          command: ["sh", "-c", "while true; do wget -q -O /dev/null -T 2 http://api/products; sleep 0.5; done"]
+          resources:
+            requests:
+              cpu: 5m
+              memory: 8Mi
+            limits:
+              cpu: 50m
+              memory: 16Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]

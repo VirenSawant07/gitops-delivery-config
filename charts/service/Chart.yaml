@@ -2,4 +2,4 @@ apiVersion: v2
 name: service
 description: One reusable chart for every microservice in the platform
 type: application
-version: 0.1.0
+version: 0.2.0
