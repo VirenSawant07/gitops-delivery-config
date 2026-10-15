@@ -24,13 +24,15 @@ spec:
             runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/high-error-rate.md
 
         - alert: ServiceDown
-          expr: sum by (namespace, service) (up{namespace=~"staging|prod"}) == 0
+          # Based on kube-state-metrics, not scrape targets: if every pod is gone there are
+          # no targets left to report "down", but the Deployment still reports 0 available.
+          expr: kube_deployment_status_replicas_available{namespace=~"staging|prod", deployment=~"api|inventory"} == 0
           for: 1m
           labels:
             severity: critical
             project: gitops-delivery-platform
           annotations:
-            summary: "No healthy {{ $labels.service }} targets in {{ $labels.namespace }}"
+            summary: "{{ $labels.deployment }} in {{ $labels.namespace }} has no available pods"
             runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/service-down.md
 
         - alert: PodRestartingFrequently
