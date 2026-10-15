@@ -1,0 +1,29 @@
+# Defaults for every service. Per-service, per-environment overrides live in apps/<env>/<service>.yaml.
+# The Helm release name becomes the service name (e.g. release "api" -> Deployment/Service "api").
+
+image:
+  repository: ""   # required, e.g. ghcr.io/virensawant07/gitops-api
+  tag: ""          # required: git SHA, never "latest"
+  pullPolicy: IfNotPresent
+
+replicas: 2
+containerPort: 8000
+
+# Extra environment variables. APP_VERSION is always set to image.tag.
+env: {}
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+pdb:
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+  # Names (release names) of the services allowed to call this one
+  allowFrom: []
