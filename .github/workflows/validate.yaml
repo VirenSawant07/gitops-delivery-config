@@ -11,6 +11,7 @@ permissions:
 env:
   KUBECONFORM_VERSION: v0.8.0
   KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+  PROMETHEUS_IMAGE: quay.io/prometheus/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
 
 jobs:
   validate:
@@ -39,4 +40,11 @@ jobs:
           kubeconform -strict -summary \
             -schema-location default \
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -ignore-filename-pattern 'observability.tests' \
             rendered/ argocd/ observability/
+
+      - name: Check and unit-test the alert rules
+        run: |
+          yq '{"groups": .spec.groups}' observability/alerts.yaml > observability/tests/rules.yaml
+          docker run --rm -v "$PWD/observability/tests:/w" -w /w --entrypoint promtool "$PROMETHEUS_IMAGE" check rules rules.yaml
+          docker run --rm -v "$PWD/observability/tests:/w" -w /w --entrypoint promtool "$PROMETHEUS_IMAGE" test rules alerts_test.yaml
