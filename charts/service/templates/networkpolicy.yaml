@@ -17,6 +17,12 @@ spec:
             matchLabels:
               app.kubernetes.io/name: {{ . }}
         {{- end }}
+        {{- if .Values.serviceMonitor.enabled }}
+        # Prometheus scrapes /metrics from the monitoring namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+        {{- end }}
       ports:
         - port: http
 {{- end }}
