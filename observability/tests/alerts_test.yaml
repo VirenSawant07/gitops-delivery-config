@@ -1,0 +1,80 @@
+# Unit tests for observability/alerts.yaml, run in CI with:
+#   promtool test rules observability/tests/alerts_test.yaml
+# (CI extracts the rule groups from the PrometheusRule into rules.yaml first.)
+rule_files:
+  - rules.yaml
+
+evaluation_interval: 15s
+
+tests:
+  - name: 30% of /products requests failing fires HighErrorRate
+    interval: 15s
+    input_series:
+      - series: 'http_requests_total{namespace="staging", service="api", path="/products", status="200"}'
+        values: '0+21x40'   # 70% succeed
+      - series: 'http_requests_total{namespace="staging", service="api", path="/products", status="500"}'
+        values: '0+9x40'    # 30% fail
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              project: gitops-delivery-platform
+              namespace: staging
+              service: api
+            exp_annotations:
+              summary: "api in staging: 30% of requests failing"
+              runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/high-error-rate.md
+
+  - name: health-check failures alone do not count as errors
+    interval: 15s
+    input_series:
+      - series: 'http_requests_total{namespace="staging", service="api", path="/products", status="200"}'
+        values: '0+10x40'
+      - series: 'http_requests_total{namespace="staging", service="api", path="/healthz", status="500"}'
+        values: '0+10x40'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: HighErrorRate
+        exp_alerts: []
+
+  - name: a deployment with zero available pods fires ServiceDown
+    interval: 15s
+    input_series:
+      - series: 'kube_deployment_status_replicas_available{namespace="prod", deployment="inventory"}'
+        values: '3 3 3 0x20'
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              project: gitops-delivery-platform
+              namespace: prod
+              deployment: inventory
+            exp_annotations:
+              summary: inventory in prod has no available pods
+              runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/service-down.md
+
+  - name: two restarts in ten minutes fires PodRestartingFrequently
+    interval: 1m
+    input_series:
+      - series: 'kube_pod_container_status_restarts_total{namespace="staging", pod="api-1", container="app"}'
+        values: '0 0 1 1 2 2 2 2 2 2'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: PodRestartingFrequently
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              project: gitops-delivery-platform
+              namespace: staging
+              pod: api-1
+              container: app
+            exp_annotations:
+              summary: api-1 in staging restarted 2 times in 10 minutes
+              runbook_url: https://github.com/VirenSawant07/gitops-delivery-app/blob/main/docs/runbooks/pod-restarting.md

@@ -149,7 +149,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "sum by (service) (rate(http_requests_total{namespace=\"$namespace\", path!~\"/healthz|/readyz|/metrics\", status=~\"5..\"}[1m])) / sum by (service) (rate(http_requests_total{namespace=\"$namespace\", path!~\"/healthz|/readyz|/metrics\"}[1m]))",
+              "expr": "(sum by (service) (rate(http_requests_total{namespace=\"$namespace\", path!~\"/healthz|/readyz|/metrics\", status=~\"5..\"}[1m])) or sum by (service) (rate(http_requests_total{namespace=\"$namespace\", path!~\"/healthz|/readyz|/metrics\"}[1m])) * 0) / sum by (service) (rate(http_requests_total{namespace=\"$namespace\", path!~\"/healthz|/readyz|/metrics\"}[1m]))",
               "legendFormat": "{{service}}"
             }
           ]

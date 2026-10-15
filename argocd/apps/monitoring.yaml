@@ -14,7 +14,7 @@ spec:
       helm:
         releaseName: monitoring
         valueFiles:
-          - $values/platform/monitoring/values.yaml
+          - $values/platform/monitoring-values.yaml
     - repoURL: https://github.com/VirenSawant07/gitops-delivery-config.git
       targetRevision: main
       ref: values

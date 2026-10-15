@@ -38,6 +38,13 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
+          # Gives the app up to 60 s to boot before liveness/readiness checks start counting
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /healthz

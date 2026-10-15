@@ -1,4 +1,4 @@
-# App-of-apps entry point: the only manifest applied by hand (by bootstrap.sh).
+# App-of-apps entry point: the only manifest applied by hand (by bootstrap/setup.sh).
 # Everything under argocd/apps/ is then created and kept in sync by ArgoCD itself.
 apiVersion: argoproj.io/v1alpha1
 kind: Application

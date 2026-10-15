@@ -11,11 +11,11 @@ Application code and the full project overview: **[gitops-delivery-app](https://
 bootstrap/
   kind-config.yaml        3-node Kind cluster (1 control plane, 2 workers)
   argocd-values.yaml      minimal ArgoCD settings (60 s Git polling)
-  bootstrap.sh            one command: cluster → ArgoCD → root app
+  setup.sh                one command: cluster → ArgoCD → root app
 argocd/
   root.yaml               app-of-apps (the only manifest applied by hand)
   apps/
-    workloads.yaml        ApplicationSet: one Application per apps/<env>/<service>.yaml
+    services.yaml         ApplicationSet: one Application per apps/<env>/<service>.yaml
     monitoring.yaml       kube-prometheus-stack (chart repo + values from this repo)
     sealed-secrets.yaml   Sealed Secrets controller
     observability.yaml    everything in observability/
@@ -23,10 +23,12 @@ charts/service/           one reusable chart: Deployment, Service, PDB, NetworkP
 apps/
   staging/                values per service, image tag updated by app CI
   prod/                   values per service, changed only by a merged promote PR
-platform/monitoring/      kube-prometheus-stack values (Kind tweaks, Discord routing)
+platform/
+  monitoring-values.yaml  kube-prometheus-stack values (Kind tweaks, Discord routing)
 observability/            alert rules, Grafana dashboard, SealedSecrets, synthetic traffic
+  tests/                  promtool unit tests for the alert rules
 .github/workflows/
-  validate.yaml           helm lint + render + kubeconform on every push
+  validate.yaml           helm lint + render + kubeconform + alert tests on every push
   promote.yaml            manual: copy staging tags to prod and open a PR
 ```
 
@@ -47,6 +49,7 @@ Every push to every branch runs `validate`:
 1. `helm lint --strict` for every service × environment
 2. `helm template` to render the final manifests
 3. `kubeconform -strict` against Kubernetes schemas and CRD schemas (ArgoCD, Prometheus Operator, Sealed Secrets)
+4. `promtool check rules` and `promtool test rules`: the alerts are unit-tested with fake metrics (e.g. 30% errors must fire `HighErrorRate`; failing health checks alone must not)
 
 Typos, wrong API versions and invalid fields are caught before merge, not at deploy time.
 
@@ -57,18 +60,25 @@ Defined in [`observability/alerts.yaml`](observability/alerts.yaml) and routed t
 | Alert | Fires when |
 |---|---|
 | HighErrorRate | > 5% of requests return 5xx for 1 min |
-| ServiceDown | no healthy scrape targets for 1 min |
+| ServiceDown | a Deployment has 0 available pods for 1 min |
 | PodRestartingFrequently | ≥ 2 restarts in 10 min |
 | HighCPUUsage | > 80% of the CPU limit for 5 min |
 | HighMemoryUsage | > 85% of the memory limit for 5 min |
 
 ## Secrets
 
-`observability/sealed-*.yaml` are SealedSecrets, encrypted with the cluster's public key. Only the in-cluster controller can decrypt them. To re-seal on a new cluster:
+`observability/*-secret.yaml` are SealedSecrets, encrypted with the cluster's public key. Only the in-cluster controller can decrypt them. To re-seal on a new cluster:
 
 ```bash
 kubectl create secret generic alertmanager-discord -n monitoring \
   --from-file=webhook-url=./discord-webhook.txt --dry-run=client -o yaml \
   | kubeseal --controller-name sealed-secrets-controller --controller-namespace kube-system --format yaml \
-  > observability/sealed-alertmanager-discord.yaml
+  > observability/discord-webhook-secret.yaml
+```
+
+To rebuild the **same** cluster without re-sealing, back up the controller's key and pass it to setup:
+
+```bash
+kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > key-backup.yaml   # keep this out of Git
+SEALED_SECRETS_KEY=key-backup.yaml bash bootstrap/setup.sh
 ```
