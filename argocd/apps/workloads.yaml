@@ -1,0 +1,38 @@
+# One ArgoCD Application per values file: apps/<env>/<service>.yaml -> "<service>-<env>".
+# Adding a new service or environment is just adding a values file.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: workloads
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/VirenSawant07/gitops-delivery-config.git
+        revision: main
+        files:
+          - path: "apps/*/*.yaml"
+  template:
+    metadata:
+      name: '{{ trimSuffix ".yaml" .path.filename }}-{{ .path.basename }}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/VirenSawant07/gitops-delivery-config.git
+        targetRevision: main
+        path: charts/service
+        helm:
+          releaseName: '{{ trimSuffix ".yaml" .path.filename }}'
+          valueFiles:
+            - '../../{{ .path.path }}/{{ .path.filename }}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "{{ .path.basename }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

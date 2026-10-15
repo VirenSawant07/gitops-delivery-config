@@ -1,0 +1,42 @@
+name: validate
+
+# Runs on every push to every branch, so the head commit of each pull request
+# (including branches pushed by automation) gets a status check before merge.
+on:
+  push:
+
+permissions:
+  contents: read
+
+env:
+  KUBECONFORM_VERSION: v0.8.0
+  KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install kubeconform (checksum verified)
+        run: |
+          curl -sSLo kc.tar.gz "https://github.com/yannh/kubeconform/releases/download/$KUBECONFORM_VERSION/kubeconform-linux-amd64.tar.gz"
+          echo "$KUBECONFORM_SHA256  kc.tar.gz" | sha256sum -c -
+          tar -xzf kc.tar.gz kubeconform && sudo mv kubeconform /usr/local/bin/
+
+      - name: Lint and render every service in every environment
+        run: |
+          mkdir rendered
+          for values in apps/*/*.yaml; do
+            env=$(basename "$(dirname "$values")")
+            svc=$(basename "$values" .yaml)
+            helm lint charts/service -f "$values" --strict
+            helm template "$svc" charts/service -f "$values" -n "$env" > "rendered/$env-$svc.yaml"
+          done
+
+      - name: Validate manifests against Kubernetes and CRD schemas
+        run: |
+          kubeconform -strict -summary \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            rendered/ argocd/
