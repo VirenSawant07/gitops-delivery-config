@@ -1,0 +1,8 @@
+# Minimal ArgoCD for a local Kind cluster
+dex:
+  enabled: false          # no SSO locally; log in with the initial admin password
+
+configs:
+  cm:
+    # How often ArgoCD polls Git. GitHub can't send webhooks to a laptop cluster, so polling it is.
+    timeout.reconciliation: 60s
