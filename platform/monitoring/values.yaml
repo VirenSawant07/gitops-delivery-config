@@ -1,0 +1,65 @@
+# kube-prometheus-stack values for the local Kind cluster.
+
+# Kind binds these control-plane components to localhost, so Prometheus can't scrape them.
+# Disabling them avoids permanently-firing "target down" alerts that mean nothing here.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    retention: 3d
+    # Pick up ServiceMonitors and PrometheusRules from every namespace,
+    # not only objects labelled for this Helm release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      limits:
+        memory: 1Gi
+
+alertmanager:
+  alertmanagerSpec:
+    # Mounted at /etc/alertmanager/secrets/alertmanager-discord/ (created from a SealedSecret)
+    secrets:
+      - alertmanager-discord
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "null"
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 2m
+      repeat_interval: 4h
+      routes:
+        # Only this platform's alerts go to Discord; the stack's generic alerts stay in the UI
+        - receiver: discord
+          matchers:
+            - project="gitops-delivery-platform"
+          group_wait: 10s
+    receivers:
+      - name: "null"
+      - name: discord
+        discord_configs:
+          - webhook_url_file: /etc/alertmanager/secrets/alertmanager-discord/webhook-url
+            send_resolved: true
+
+grafana:
+  admin:
+    # Credentials come from a SealedSecret, not from the chart's well-known default
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard

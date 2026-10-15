@@ -1,0 +1,31 @@
+# Prometheus, Alertmanager, Grafana, kube-state-metrics and node-exporter.
+# The chart comes from its Helm repo; our values file comes from this Git repo (multi-source).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 92.9.0
+      helm:
+        releaseName: monitoring
+        valueFiles:
+          - $values/platform/monitoring/values.yaml
+    - repoURL: https://github.com/VirenSawant07/gitops-delivery-config.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The operator's CRDs are too large for client-side apply annotations
+      - ServerSideApply=true
