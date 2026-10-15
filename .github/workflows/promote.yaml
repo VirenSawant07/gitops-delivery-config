@@ -1,0 +1,42 @@
+name: promote
+
+# Manual "ship it" button: copies the image tags running in staging into prod
+# and opens a pull request. Prod only changes when a human merges that PR.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      # Pushed with the deploy key (not GITHUB_TOKEN) so the validate check runs on the new branch
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ssh-key: ${{ secrets.CONFIG_REPO_DEPLOY_KEY }}
+
+      - name: Copy staging image tags to prod
+        run: |
+          for svc in api inventory; do
+            tag=$(yq '.image.tag' "apps/staging/$svc.yaml")
+            yq -i ".image.tag = \"$tag\"" "apps/prod/$svc.yaml"
+          done
+
+      - name: Open the promotion pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet; then echo "prod already matches staging"; exit 0; fi
+          tag=$(yq '.image.tag' apps/staging/api.yaml)
+          branch="promote/${tag::7}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "deploy(prod): promote ${tag::7} from staging"
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "deploy(prod): promote ${tag::7} from staging" \
+            --body "Promotes the images currently running in staging to prod. Merge to deploy; ArgoCD syncs prod after merge."
