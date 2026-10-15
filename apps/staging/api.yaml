@@ -1,5 +1,5 @@
 image:
   repository: ghcr.io/virensawant07/gitops-api
-  tag: ec188f9a56e69213f974ed86bbb1e61701450f2f
+  tag: c0264b170b7307178bc63efcbd88fcf1c6e85182
 env:
   INVENTORY_URL: http://inventory
