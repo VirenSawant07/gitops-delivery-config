@@ -1,0 +1,7 @@
+image:
+  repository: ghcr.io/virensawant07/gitops-inventory
+  tag: dev
+
+networkPolicy:
+  enabled: true
+  allowFrom: [api]

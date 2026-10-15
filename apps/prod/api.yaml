@@ -1,0 +1,11 @@
+image:
+  repository: ghcr.io/virensawant07/gitops-api
+  tag: dev
+
+replicas: 3
+
+pdb:
+  minAvailable: 2
+
+env:
+  INVENTORY_URL: http://inventory
