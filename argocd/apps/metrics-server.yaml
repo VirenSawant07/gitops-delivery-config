@@ -1,0 +1,26 @@
+# Resource metrics API: powers `kubectl top` (used in the high-cpu / high-memory runbooks).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metrics-server
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/metrics-server/
+    chart: metrics-server
+    targetRevision: 3.14.0
+    helm:
+      releaseName: metrics-server
+      valuesObject:
+        args:
+          # Kind's kubelets serve self-signed certificates that metrics-server can't verify.
+          # Acceptable on a local Kind cluster only; a real cluster should use properly signed kubelet certs.
+          - --kubelet-insecure-tls
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

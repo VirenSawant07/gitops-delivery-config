@@ -18,7 +18,7 @@ spec:
     metadata:
       name: '{{ trimSuffix ".yaml" .path.filename }}-{{ .path.basename }}'
     spec:
-      project: default
+      project: workloads   # restricted to this repo and the staging/prod namespaces (workloads-project.yaml)
       source:
         repoURL: https://github.com/VirenSawant07/gitops-delivery-config.git
         targetRevision: main
