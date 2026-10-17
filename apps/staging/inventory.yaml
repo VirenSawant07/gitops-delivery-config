@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/virensawant07/gitops-inventory
-  tag: c0264b170b7307178bc63efcbd88fcf1c6e85182
+  tag: 3c150f8a79689763344f2afc32cfdb3c7fd2ade5
 networkPolicy:
   enabled: true
   allowFrom: [api]
