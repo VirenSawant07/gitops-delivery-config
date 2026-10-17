@@ -2,8 +2,9 @@
 # Rebuilds the whole platform from Git: Kind cluster -> ArgoCD -> root app.
 # Everything else (workloads, monitoring) is then installed by ArgoCD from this repo.
 #
-# Optional: SEALED_SECRETS_KEY=path/to/key-backup.yaml restores the Sealed Secrets key,
+# Optional: SEALED_SECRETS_KEY=~/sealed-secrets-key-backup.yaml restores the Sealed Secrets key,
 # so the SealedSecrets committed in observability/ can be decrypted on the new cluster.
+# Keep that backup OUTSIDE this repo: it is the private key that decrypts every secret here.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

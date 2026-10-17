@@ -23,6 +23,14 @@ resources:
 pdb:
   minAvailable: 1
 
+# Spread replicas across nodes so one node failure doesn't take every copy down.
+# ScheduleAnyway = a preference, not a rule: on a 2-worker Kind cluster a drain can still reschedule.
+topologySpread:
+  enabled: true
+  maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+
 serviceMonitor:
   enabled: true     # needs the Prometheus Operator CRDs (installed by platform/monitoring)
   interval: 15s

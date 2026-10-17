@@ -2,7 +2,11 @@
 rendered/
 observability/tests/rules.yaml
 
-# Never commit plain secrets or the sealing key backup
+# Never commit plain secrets or the sealing key backup.
+# The backup belongs outside the repo (~/sealed-secrets-key-backup.yaml); these patterns are a safety net.
 *.key
 *-key.yaml
+*key-backup*
+*sealing-key*
+sealed-secrets-key*
 discord-webhook.txt

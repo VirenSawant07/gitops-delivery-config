@@ -1,9 +1,12 @@
 name: validate
 
-# Runs on every push to every branch, so the head commit of each pull request
-# (including branches pushed by automation) gets a status check before merge.
+# `push` runs on every branch, so the head commit of every same-repo pull request gets a status check.
+# It is kept (instead of relying on `pull_request`) because promote PRs are opened by a workflow using
+# GITHUB_TOKEN, and events created with GITHUB_TOKEN do not trigger `pull_request` workflows.
+# `pull_request` is added only for PRs from forks, whose commits never trigger `push` here.
 on:
   push:
+  pull_request:
 
 permissions:
   contents: read
@@ -12,9 +15,13 @@ env:
   KUBECONFORM_VERSION: v0.8.0
   KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
   PROMETHEUS_IMAGE: quay.io/prometheus/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+  # CRD schemas pinned to a commit of datreeio/CRDs-catalog, so validation can't change underneath us
+  CRDS_CATALOG_SHA: 63669a570e231d4f1f8396d229a1de512bcf0a34
 
 jobs:
   validate:
+    # Same-repo PRs are already validated by the push event; only fork PRs need the pull_request run.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,7 +46,7 @@ jobs:
         run: |
           kubeconform -strict -summary \
             -schema-location default \
-            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            -schema-location "https://raw.githubusercontent.com/datreeio/CRDs-catalog/$CRDS_CATALOG_SHA/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json" \
             -ignore-filename-pattern 'observability.tests' \
             rendered/ argocd/ observability/
 

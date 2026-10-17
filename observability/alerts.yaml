@@ -26,7 +26,9 @@ spec:
         - alert: ServiceDown
           # Based on kube-state-metrics, not scrape targets: if every pod is gone there are
           # no targets left to report "down", but the Deployment still reports 0 available.
-          expr: kube_deployment_status_replicas_available{namespace=~"staging|prod", deployment=~"api|inventory"} == 0
+          # Every Deployment in staging/prod, so a new service is covered without editing this rule.
+          # traffic-generator is a load-test helper, not a service users depend on.
+          expr: kube_deployment_status_replicas_available{namespace=~"staging|prod", deployment!="traffic-generator"} == 0
           for: 1m
           labels:
             severity: critical

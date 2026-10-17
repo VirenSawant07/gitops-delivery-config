@@ -10,6 +10,7 @@ spec:
     matchLabels:
       {{- include "service.selectorLabels" . | nindent 6 }}
   policyTypes: ["Ingress"]
+  {{- if or .Values.networkPolicy.allowFrom .Values.serviceMonitor.enabled }}
   ingress:
     - from:
         {{- range .Values.networkPolicy.allowFrom }}
@@ -25,4 +26,8 @@ spec:
         {{- end }}
       ports:
         - port: http
+  {{- else }}
+  # No allowed peers: an empty `from:` would mean "allow everyone", so deny all ingress instead.
+  ingress: []
+  {{- end }}
 {{- end }}
